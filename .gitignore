@@ -1,3 +1,4 @@
 /newEnv
 .venv
 .DS_Store
+secrets.txt
