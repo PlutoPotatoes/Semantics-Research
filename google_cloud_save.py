@@ -2,7 +2,8 @@
 
 import os
 from google.cloud import storage
-
+from google.oauth2 import service_account
+import json
 
 
 # Configuration
@@ -10,9 +11,9 @@ bucket_name = "project3102-model-bucket"
 destination_blob_prefix = "Upload-Test/" # Folder path in GCS
 local_dir = "./Upload-Test"
 
-def upload_model(bucket_name, destination_blob_prefix, local_dir):
-    
-    storage_client = storage.Client(credentials={'apikey': 'afdasfa'})
+def upload_model(credentials_path, bucket_name, destination_blob_prefix, local_dir):
+    credentials = service_account.Credentials.from_service_account_file(credentials_path)
+    storage_client = storage.Client(credentials=credentials)
     bucket = storage_client.bucket(bucket_name)
 
     # Upload each file in the local directory
