@@ -10,7 +10,15 @@ bucket_name = "project3102-model-bucket"
 destination_blob_prefix = "Upload-Test/" # Folder path in GCS
 local_dir = "./Upload-Test"
 
+#works as intended, is just a little picky about input names
 def upload_folder(credentials_path, bucket_name, destination_blob_prefix, local_dir):
+    '''
+    Upload all files in a folder to a GCS Bucket
+    :param credentials_path: The path to a service account credential file in JSON format
+    :param bucket_name: The bucket to place the folder in
+    :param destination_blob_prefix: Folder path in the bucket to place the files inside INCLUDING THE NEW FOLDER (ex. old_folder/new_folder/)
+    :param local_dir: Relative path of the local folder being uploaded
+    '''
     credentials = service_account.Credentials.from_service_account_file(credentials_path)
     storage_client = storage.Client(credentials=credentials)
     bucket = storage_client.bucket(bucket_name)
@@ -29,15 +37,24 @@ def upload_folder(credentials_path, bucket_name, destination_blob_prefix, local_
 
     print("All model files uploaded to Google Cloud Storage.")
 
-def upload_file(credentials_path, bucket_name, destination_folder, filepath):
+def upload_file(credentials_path, bucket_name, destination_blob_prefix, filepath):
+    '''
+    Upload all files in a folder to a GCS Bucket
+    :param credentials_path: The path to a service account credential file in JSON format
+    :param bucket_name: The bucket to place the folder in
+    :param destination_blob_prefix: Folder path in the bucket to place the files inside INCLUDING THE NEW FOLDER (ex. old_folder/new_folder/)
+    :param filepath: Relative path of the local file being uploaded
+    '''
+
     credentials = service_account.Credentials.from_service_account_file(credentials_path)
     storage_client = storage.Client(credentials=credentials)
     bucket = storage_client.bucket(bucket_name)
-    #get folder or create if it doesn't exist
-    blob = bucket.get_blob(destination_folder)
+    #THE BLOB YOU CREATE NEEDS TO BE NAMED THE SAME AS THE FILE YOU UPLOAD
+    blob_address = os.path.join(destination_blob_prefix, os.path.basename(filepath))
+    blob = bucket.get_blob(blob_address)
     if blob == None:
-        blob = bucket.blob(destination_folder)
-    blob.upload_from_filename(filepath)
+        blob = bucket.blob(blob_address)
+    blob.upload_from_filename("Semantics-Research/Upload-Test/test.txt", client=storage_client)
     print(f"Uploaded {filepath} to gs://{bucket_name}")
 
 def download_file(credentials_path, bucket_name, file_blob_name, download_path):
@@ -50,8 +67,8 @@ def download_file(credentials_path, bucket_name, file_blob_name, download_path):
         raise FileNotFoundError(
             f"The blob {file_blob_name} does not exist."
         )
-    
-    os.makedirs(os.path.dirname(download_path), exist_ok=True)
+    if os.path.dirname(download_path) != '':
+        os.makedirs(os.path.dirname(download_path), exist_ok=True)
     blob.download_to_filename(download_path)
     print(f"Downloaded gs://{bucket_name}/{file_blob_name} → {download_path}")
 
@@ -59,18 +76,20 @@ def download_file(credentials_path, bucket_name, file_blob_name, download_path):
 def download_folder_from_bucket(credentials_path,
                                  bucket_name: str,
                                  source_prefix: str,
-                                 destination_folder: str):
+                                 destination_folder: str = ''):
     """
     Download an entire 'folder' (prefix) from a GCS bucket.
 
     :param credentials_path: filepath for service_account.json
     :param bucket_name: Name of the GCS bucket
     :param source_prefix: Folder path in bucket (e.g. 'models/my-model/')
-    :param destination_folder: Local folder to save contents
+    :param destination_folder: Local folder and filename to save content to
     """
 
     if not source_prefix.endswith("/"):
         source_prefix += "/"
+    if destination_folder == '':
+        destination_folder = source_prefix
 
     credentials = service_account.Credentials.from_service_account_file(credentials_path)
     client = storage.Client(credentials=credentials)
@@ -109,6 +128,12 @@ def download_folder_from_bucket(credentials_path,
 
 
 def get_data(credentials_path, bucket_name, data_blob_path):
+    '''
+    retrieves a .jsonl file from GSC and formats it into a huggingface dataset object for use with huggingface models.
+    :param credentials_path: filepath for service_account.json
+    :param bucket_name: Name of the GCS bucket holding the data file
+    :param data_blob_path: path to .jsonl blob to extract and format
+    '''
     credentials = service_account.Credentials.from_service_account_file(credentials_path)
     storage_client = storage.Client(credentials=credentials)
     bucket = storage_client.bucket(bucket_name)
@@ -121,8 +146,9 @@ def get_data(credentials_path, bucket_name, data_blob_path):
     
     json_bytes = blob.download_as_bytes()
     json_data = json_bytes.decode('utf-8')
-    data = json_data.__dict__
-    ds = datasets.Dataset.from_dict(data)   
+    data = [dict(json.loads(line)) for line in json_data.splitlines()]
+    #ds = datasets.Dataset.from_dict(data)   
+    ds = datasets.Dataset.from_list(data)
     return ds
 
 
@@ -131,10 +157,11 @@ def get_data(credentials_path, bucket_name, data_blob_path):
 if __name__ == "__main__":
     bucket_name = "project3102-model-bucket"
     destination_blob_prefix = "Upload-Test/" # Folder path in GCS
-    local_dir = "./Upload-Test"
+    local_dir = "Semantics-Research/Upload-Test"
     file = "Semantics-Research/Upload-Test/test.txt"
-    upload_folder(credentials_path='./service_account.json', bucket_name=bucket_name, destination_blob_prefix=destination_blob_prefix, local_dir=local_dir)
-    upload_file(credentials_path='./service_account.json', bucket_name=bucket_name, destination_folder=destination_blob_prefix, filepath=file)
-    #download_file(credentials_path='./service_account.json', bucket_name=bucket_name, destination_folder=destination_blob_prefix, filepath=file)
-    #test download_folder()
-    #test get_data()
+    service_account_path = "Semantics-Research/nlp-research-sp26-8499634f1c62.json"
+    #upload_folder(credentials_path=service_account_path, bucket_name=bucket_name, destination_blob_prefix=destination_blob_prefix, local_dir=local_dir)
+    #upload_file(credentials_path=service_account_path, bucket_name=bucket_name, destination_blob_prefix=destination_blob_prefix, filepath=file)
+    #download_file(credentials_path=service_account_path, bucket_name=bucket_name, file_blob_name='Upload-Test/test.txt', download_path='test.txt')
+    #download_folder_from_bucket(credentials_path=service_account_path, bucket_name=bucket_name, source_prefix='Upload-Test/', destination_folder='')
+    dataset = get_data(credentials_path=service_account_path, bucket_name="project3102-data-bucket", data_blob_path="sample_1950s_1960s.jsonl")
