@@ -1,5 +1,3 @@
-#THIS IS A SAMPLE FROM GOOGLE, WON'T WORK
-
 import os
 from google.cloud import storage
 from google.oauth2 import service_account
@@ -57,6 +55,59 @@ def download_file(credentials_path, bucket_name, file_blob_name, download_path):
     blob.download_to_filename(download_path)
     print(f"Downloaded gs://{bucket_name}/{file_blob_name} → {download_path}")
 
+
+def download_folder_from_bucket(credentials_path,
+                                 bucket_name: str,
+                                 source_prefix: str,
+                                 destination_folder: str):
+    """
+    Download an entire 'folder' (prefix) from a GCS bucket.
+
+    :param credentials_path: filepath for service_account.json
+    :param bucket_name: Name of the GCS bucket
+    :param source_prefix: Folder path in bucket (e.g. 'models/my-model/')
+    :param destination_folder: Local folder to save contents
+    """
+
+    if not source_prefix.endswith("/"):
+        source_prefix += "/"
+
+    credentials = service_account.Credentials.from_service_account_file(credentials_path)
+    client = storage.Client(credentials=credentials)
+    bucket = client.bucket(bucket_name)
+    blobs = client.list_blobs(bucket_name, prefix=source_prefix)
+
+    found = False
+    for blob in blobs:
+        # Skip directory placeholders
+        if blob.name.endswith("/"):
+            continue
+
+        found = True
+
+        # Remove the prefix from blob path
+        relative_path = blob.name[len(source_prefix):]
+
+        # Construct full local path
+        local_path = os.path.join(destination_folder, relative_path)
+
+        # Ensure directory exists
+        os.makedirs(os.path.dirname(local_path), exist_ok=True)
+
+        # Download file
+        blob.download_to_filename(local_path)
+
+        print(f"Downloaded gs://{bucket_name}/{blob.name} → {local_path}")
+
+    if not found:
+        raise FileNotFoundError(
+            f"No objects found with prefix '{source_prefix}' in bucket '{bucket_name}'."
+        )
+
+    print("Folder download complete.")
+
+
+
 def get_data(credentials_path, bucket_name, data_blob_path):
     credentials = service_account.Credentials.from_service_account_file(credentials_path)
     storage_client = storage.Client(credentials=credentials)
@@ -71,7 +122,7 @@ def get_data(credentials_path, bucket_name, data_blob_path):
     json_bytes = blob.download_as_bytes()
     json_data = json_bytes.decode('utf-8')
     data = json_data.__dict__
-    ds = datasets.Dataset.from_dict(data)
+    ds = datasets.Dataset.from_dict(data)   
     return ds
 
 
@@ -85,3 +136,5 @@ if __name__ == "__main__":
     upload_folder(credentials_path='./service_account.json', bucket_name=bucket_name, destination_blob_prefix=destination_blob_prefix, local_dir=local_dir)
     upload_file(credentials_path='./service_account.json', bucket_name=bucket_name, destination_folder=destination_blob_prefix, filepath=file)
     #download_file(credentials_path='./service_account.json', bucket_name=bucket_name, destination_folder=destination_blob_prefix, filepath=file)
+    #test download_folder()
+    #test get_data()
