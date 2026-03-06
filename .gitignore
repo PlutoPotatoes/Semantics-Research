@@ -4,3 +4,5 @@
 secrets.txt
 service_account.json
 *.json
+/Models
+/__pycache__
