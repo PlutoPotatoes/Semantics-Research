@@ -32,7 +32,7 @@ def upload_folder(credentials_path, bucket_name, destination_blob_prefix, local_
             remote_path = os.path.join(destination_blob_prefix, relative_path)
             
             blob = bucket.blob(remote_path)
-            blob.upload_from_filename(local_file_path)
+            blob.upload_from_filename(local_file_path, timeout=1000)
             print(f"Uploaded {local_file_path} to gs://{bucket_name}/{remote_path}")
 
     print("All model files uploaded to Google Cloud Storage.")
