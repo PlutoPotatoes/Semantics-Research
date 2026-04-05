@@ -151,7 +151,27 @@ def gcs_get_dataset(credentials_path, bucket_name, data_blob_path):
     ds = datasets.Dataset.from_list(data)
     return ds
 
+def gcs_get_dataset_json_data(credentials_path, bucket_name, data_blob_path):
+    '''
+    retrieves a .jsonl file from GSC and formats it into a huggingface dataset object for use with huggingface models.
+        :param credentials_path: filepath for service_account.json
+        :param bucket_name: Name of the GCS bucket holding the data file
+        :param data_blob_path: path to .jsonl blob to extract and format
+    '''
+    credentials = service_account.Credentials.from_service_account_file(credentials_path)
+    storage_client = storage.Client(credentials=credentials)
+    bucket = storage_client.bucket(bucket_name)
 
+    blob = bucket.get_blob(blob_name=data_blob_path)
+    if blob==None:
+        raise FileNotFoundError(
+            f"The blob {data_blob_path} does not exist."
+        )
+    
+    json_bytes = blob.download_as_bytes()
+    json_data = json_bytes.decode('utf-8')
+    data = [dict(json.loads(line)) for line in json_data.splitlines()]
+    return data
 
 # Configuration
 if __name__ == "__main__":
@@ -160,8 +180,12 @@ if __name__ == "__main__":
     local_dir = "Semantics-Research/Upload-Test"
     file = "Semantics-Research/Upload-Test/test.txt"
     service_account_path = "Semantics-Research/nlp-research-sp26-8499634f1c62.json"
-    upload_folder(credentials_path=service_account_path, bucket_name=bucket_name, destination_blob_prefix=destination_blob_prefix, local_dir=local_dir)
+    #upload_folder(credentials_path=service_account_path, bucket_name=bucket_name, destination_blob_prefix=destination_blob_prefix, local_dir=local_dir)
     #upload_file(credentials_path=service_account_path, bucket_name=bucket_name, destination_blob_prefix=destination_blob_prefix, filepath=file)
     #download_file(credentials_path=service_account_path, bucket_name=bucket_name, file_blob_name='Upload-Test/test.txt', download_path='test.txt')
     #download_folder_from_bucket(credentials_path=service_account_path, bucket_name=bucket_name, source_prefix='Upload-Test/', destination_folder='')
-    dataset = gcs_get_dataset(credentials_path=service_account_path, bucket_name="project3102-data-bucket", data_blob_path="sample_1950s_1960s.jsonl")
+    #dataset = gcs_get_dataset(credentials_path=service_account_path, bucket_name="project3102-data-bucket", data_blob_path="sample_1950s_1960s.jsonl")
+    dataset = gcs_get_dataset(credentials_path=service_account_path, bucket_name="project3102-data-bucket", data_blob_path="coha_sharded_full/train/1810s/shard_000.jsonl")
+    print(dataset[0])
+
+
