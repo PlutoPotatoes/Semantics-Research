@@ -25,11 +25,20 @@ DECADES = [
     "1810s", "1820s", "1830s", "1840s", "1850s", "1860s", "1870s", "1880s", "1890s", "1900s", 
     "1910s", "1920s", "1930s", "1940s", "1950s", "1960s", "1970s", "1980s", "1990s", "2000s"
 ]
+DECADES = [
+    "1810s", "1820s"
+]
 
 
 def gen(data):
     for item in data:
-        yield item
+        text = item['text'] # type: ignore
+        date = item['decade'] # type: ignore
+        date = str(date).removesuffix('s')
+        yield {
+            'decade': date,
+            'text': f'<year_{date}> '+ text
+        }
 
 def build_decade_balanced_stream(
     service_account_path,
@@ -48,14 +57,12 @@ def build_decade_balanced_stream(
     
     # a list of streaming datasets
     streams = []
-    #FIXME should iterate over file_blob_names to grab all shard_000.jsonl files, load each one into a dataset, shuffle, and append
-    #download_file(credentials_path=service_account_path, bucket_name=bucket_name, file_blob_name='Upload-Test/test.txt', download_path='test.txt')
 
     for decade in DECADES:
         # one streaming dataset per decade (streaming=True)
-
+        if split=='valid' and decade == '1810s':
+            continue
         raw_data = gcs_get_dataset_json_data(credentials_path=service_account_path, bucket_name="project3102-data-bucket", data_blob_path=f"{root}/{split}/{decade}/shard_000.jsonl")
-
         dataset = IterableDataset.from_generator(generator=gen, gen_kwargs={'data': raw_data}, split='train') # pyright: ignore[reportArgumentType]
         # dataset = load_dataset(
         #     "json",
@@ -82,9 +89,9 @@ def main():
 
     # Take a look at the first 32 examples from the dataset stream
     for i, example in enumerate(my_dataset):
-        if i >= 32:
+        if i >= 2:
             break
-        print(example["decade"], example["genre"], example["doc_id"])
+        print(example)
 
 
 if __name__ == "__main__":
