@@ -94,6 +94,7 @@ def main():
             break
         print(example)
 
+    print(len(my_dataset))
 
 if __name__ == "__main__":
     main()
