@@ -22,7 +22,7 @@ from google_cloud_save import gcs_get_dataset_json_data
 
 
 DECADES = [
-    "1810s", "1820s", "1830s", "1840s", "1850s", "1860s", "1870s", "1880s", "1890s", "1900s", 
+    "1810s", "1820s", "1830s", "1840s", "1850s", "1860s", "1870s", "1880s", "1890s", "1900s",
     "1910s", "1920s", "1930s", "1940s", "1950s", "1960s", "1970s", "1980s", "1990s", "2000s"
 ]
 
@@ -31,32 +31,37 @@ def gen(data):
     for item in data:
         yield item
 
+
 def build_decade_balanced_stream(
-    service_account_path,
-    root = "coha_sharded_full", 
-    split = "train",
-    buffer_size = 50_000,
-    seed = 123,
-    probabilities = None,
-    stopping_strategy = "all_exhausted",):
+        service_account_path=None,
+        root="coha_sharded_full",
+        split="train",
+        buffer_size=50_000,
+        seed=123,
+        probabilities=None,
+        stopping_strategy="all_exhausted",):
     """     
     Return: 
         A mixed IterableDataset, a streaming iterable. 
     """
-    # hugging face datasets: 
+    # hugging face datasets:
     # Stream and interleave datasets: https://huggingface.co/docs/datasets/stream#interleave-datasets
-    
+
     # a list of streaming datasets
     streams = []
-    #FIXME should iterate over file_blob_names to grab all shard_000.jsonl files, load each one into a dataset, shuffle, and append
-    #download_file(credentials_path=service_account_path, bucket_name=bucket_name, file_blob_name='Upload-Test/test.txt', download_path='test.txt')
+    # FIXME should iterate over file_blob_names to grab all shard_000.jsonl files, load each one into a dataset, shuffle, and append
+    # download_file(credentials_path=service_account_path, bucket_name=bucket_name, file_blob_name='Upload-Test/test.txt', download_path='test.txt')
 
     for decade in DECADES:
         # one streaming dataset per decade (streaming=True)
 
-        raw_data = gcs_get_dataset_json_data(credentials_path=service_account_path, bucket_name="project3102-data-bucket", data_blob_path=f"{root}/{split}/{decade}/shard_000.jsonl")
+        raw_data = gcs_get_dataset_json_data(
+            credentials_path=service_account_path, bucket_name="project3102-data-bucket", data_blob_path=f"{root}/{split}/{decade}/shard_000.jsonl")
 
-        dataset = IterableDataset.from_generator(generator=gen, gen_kwargs={'data': raw_data}, split='train') # pyright: ignore[reportArgumentType]
+        dataset = IterableDataset.from_generator(generator=gen, gen_kwargs={
+                                                 # pyright: ignore[reportArgumentType]
+                                                 # , split='train')
+                                                 'data': raw_data})
         # dataset = load_dataset(
         #     "json",
         #     data_files=[f"{root}/{split}/{decade}/shard_*.jsonl"],
@@ -68,25 +73,28 @@ def build_decade_balanced_stream(
         streams.append(dataset)
 
     # interleave decades
-    mixed = interleave_datasets(streams, probabilities=probabilities, seed=seed, stopping_strategy=stopping_strategy)  # type: ignore
-   
+    mixed = interleave_datasets(streams, probabilities=probabilities,
+                                seed=seed, stopping_strategy=stopping_strategy)  # type: ignore
+
     # shuffle the mixed dataset
     mixed = mixed.shuffle(buffer_size=buffer_size, seed=seed)
-    
+
     return mixed
 
 
 def main():
 
-    my_dataset = build_decade_balanced_stream("Semantics-Research/nlp-research-sp26-8499634f1c62.json")
+    my_dataset = build_decade_balanced_stream(
+        "nlp-research-sp26-8499634f1c62.json")
 
     # Take a look at the first 32 examples from the dataset stream
     for i, example in enumerate(my_dataset):
-        if i >= 32:
+        if i >= 3:
             break
         print(example["decade"], example["genre"], example["doc_id"])
+    first = next(iter(my_dataset))
+    print(first)
 
 
 if __name__ == "__main__":
     main()
-
