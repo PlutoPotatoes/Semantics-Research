@@ -64,7 +64,7 @@ def build_decade_balanced_stream(
             credentials_path=service_account_path, bucket_name="project3102-data-bucket", data_blob_path=f"{root}/{split}/{decade}/shard_000.jsonl")
         dataset = IterableDataset.from_generator(generator=gen, gen_kwargs={
                                                  # pyright: ignore[reportArgumentType]
-                                                 'data': raw_data}, split='train')
+                                                 'data': raw_data})
         # dataset = load_dataset(
         #     "json",
         #     data_files=[f"{root}/{split}/{decade}/shard_*.jsonl"],

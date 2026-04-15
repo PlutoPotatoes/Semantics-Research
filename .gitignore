@@ -6,3 +6,4 @@ service_account.json
 *.json
 /Models
 /__pycache__
+mcBerth_training/trainer/__pycache__
