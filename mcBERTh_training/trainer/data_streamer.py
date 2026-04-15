@@ -34,7 +34,7 @@ def gen(data):
         date = str(date).removesuffix('s')
         yield {
             'decade': date,
-            'text': f'<year_{date}> ' + text
+            'text': f'<decade_{date}> ' + text
         }
 
 
