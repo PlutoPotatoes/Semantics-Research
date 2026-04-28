@@ -5,6 +5,7 @@ from transformers import (
 )
 from data_streamer import build_decade_balanced_stream, DECADES
 import os
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import json
 import math
 from google.cloud import storage
@@ -16,14 +17,12 @@ model_name = "emanjavacas/MacBERTh"
 experiment_name = "McBERTh-Pretrain-v1"
 epochs = 3
 learning_rate = 5e-5
-batch_size = 32
+batch_size = 8
 # gradient_accumulation_steps = (batchsize * 8) / (batchsize * #_GPU)
 # 1 GPU:  256 / (32 * 1) = 8
 # 2 GPUs: 256 / (32 * 2) = 4
 gradient_accumulation_steps = 8
-# max_steps = math.ceil(
-#     2102849 / (batch_size * gradient_accumulation_steps)) * epochs
-max_steps = 50
+max_steps = math.ceil(2102849 / (batch_size * gradient_accumulation_steps)) * epochs
 logging_steps = 100
 warmup_ratio = 0.05
 weight_decay = 0.01
@@ -33,7 +32,7 @@ gcs_credentials = "nlp-research-sp26-8499634f1c62.json"
 
 # ── Tokenizer ─────────────────────────────────────────────────────
 
-
+print('Building tokenizer')
 def get_date_tokens(decades):
     return [f"<decade_{str(d).removesuffix('s')}>" for d in decades]
 
@@ -52,6 +51,7 @@ def tokenize_data(examples):
 
 
 # ── Datasets ──────────────────────────────────────────────────────
+print("building dataset")
 train_dataset = build_decade_balanced_stream(
     service_account_path=gcs_credentials)
 val_dataset = build_decade_balanced_stream(
@@ -60,7 +60,7 @@ train_dataset = train_dataset.map(
     tokenize_data, batch_size=batch_size, batched=True)
 val_dataset = val_dataset.map(
     tokenize_data,   batch_size=batch_size, batched=True)
-
+print("dataset complete, formatting model")
 # ── Model ─────────────────────────────────────────────────────────
 model = BertForMaskedLM.from_pretrained(model_name)
 model.resize_token_embeddings(len(tokenizer))
@@ -71,6 +71,7 @@ data_collator = DataCollatorForLanguageModeling(
 
 # ── Training ──────────────────────────────────────────────────────
 # Vertex AI sets AIP_MODEL_DIR automatically — use it as output dir
+print('Traning start:')
 output_dir = os.environ.get("AIP_MODEL_DIR", f"Models/{experiment_name}")
 
 training_args = TrainingArguments(
@@ -92,7 +93,7 @@ training_args = TrainingArguments(
     warmup_ratio=warmup_ratio,
     learning_rate=learning_rate,
     weight_decay=weight_decay,
-    optim='adamw_torch',
+    optim='adamw_torch'
 )
 
 trainer = Trainer(
@@ -106,8 +107,9 @@ trainer = Trainer(
 )
 
 trainer.train()
-
+print("training complete")
 # ── Save ──────────────────────────────────────────────────────────
+print("saving model")
 save_path = f"{output_dir}/best"
 trainer.save_model(save_path)
 tokenizer.save_pretrained(save_path)

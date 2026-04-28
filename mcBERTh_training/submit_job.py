@@ -1,14 +1,22 @@
 from google.cloud import aiplatform
+from google.oauth2 import service_account
+
+credentials_path = 'nlp-research-sp26-8499634f1c62.json'
+credentials = service_account.Credentials.from_service_account_file(credentials_path)
+
 
 aiplatform.init(
+    credentials=credentials,
     project="nlp-research-sp26",
     location="us-central1",
     staging_bucket="gs://project3102-model-bucket"
 )
 
+
+
 job = aiplatform.CustomContainerTrainingJob(
     display_name="mcberth-pretrain-v1-test",
-    container_uri="us-docker.pkg.dev/nlp-research-sp26/mcberth-training/mcberth-training:v1-test",
+    container_uri="us-docker.pkg.dev/nlp-research-sp26/mcberth-training/mcberth-training:test_mcberth",
 )
 
 job.run(
