@@ -20,8 +20,8 @@ job = aiplatform.CustomContainerTrainingJob(
 )
 
 job.run(
-    machine_type="n1-standard-4",
-    accelerator_type="NVIDIA_TESLA_T4",
+    machine_type="a2-highgpu-1g",
+    accelerator_type="NVIDIA_TESLA_A100",
     accelerator_count=1,
     replica_count=1,
     base_output_dir="gs://project3102-model-bucket/Training-Tests/McBERTh-Pretrain-v1-test",

@@ -1,23 +1,24 @@
 from transformers import (
     BertForMaskedLM, AutoTokenizer,
     DataCollatorForLanguageModeling,
-    Trainer, TrainingArguments, EarlyStoppingCallback
+    Trainer, TrainingArguments, EarlyStoppingCallback,
+    TrainerCallback
 )
 from data_streamer import build_decade_balanced_stream, DECADES
 import os
-os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 import json
 import math
 from google.cloud import storage
 from google.oauth2 import service_account
 import math
+#os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
 
 # ── Hyperparameters ───────────────────────────────────────────────
 model_name = "emanjavacas/MacBERTh"
 experiment_name = "McBERTh-Pretrain-v1"
 epochs = 3
 learning_rate = 5e-5
-batch_size = 8
+batch_size = 32
 # gradient_accumulation_steps = (batchsize * 8) / (batchsize * #_GPU)
 # 1 GPU:  256 / (32 * 1) = 8
 # 2 GPUs: 256 / (32 * 2) = 4
@@ -48,6 +49,7 @@ def tokenize_data(examples):
         result["word_ids"] = [result.word_ids(
             i) for i in range(len(result["input_ids"]))]
     return result
+
 
 
 # ── Datasets ──────────────────────────────────────────────────────
@@ -95,6 +97,9 @@ training_args = TrainingArguments(
     weight_decay=weight_decay,
     optim='adamw_torch'
 )
+
+for param in model.parameters():
+    param.data = param.data.contiguous()
 
 trainer = Trainer(
     model=model,
